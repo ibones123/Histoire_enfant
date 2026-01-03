@@ -1,0 +1,45 @@
+{% extends "accounts/base.html" %}
+{% block titre %}Créer une histoire{% endblock %}
+
+{% block contenu %}
+<div class="max-w-lg mx-auto bg-white border rounded-3xl p-6 shadow-sm">
+  <h1 class="text-2xl font-extrabold tracking-tight">Créer une histoire</h1>
+  <p class="mt-1 text-sm text-slate-600">Choisis un enfant + un thème. On génère l’histoire avec images + audio.</p>
+
+  {% if erreur %}
+    <div class="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+      {{ erreur }}
+    </div>
+  {% endif %}
+
+  <form method="post" class="mt-6 space-y-4">
+    {% csrf_token %}
+
+    <div>
+      <label class="block text-sm font-medium text-slate-700">Enfant</label>
+      <select name="enfant_id" required
+              class="mt-1 w-full px-3 py-2 rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200">
+        <option value="">-- Choisir --</option>
+        {% for enfant in enfants %}
+          <option value="{{ enfant.id }}">{{ enfant.prenom }} ({{ enfant.age }} ans)</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-700">Titre / mots-clés</label>
+      <input name="titre" type="text" required placeholder="ex: la petite étoile malade"
+             class="mt-1 w-full px-3 py-2 rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-200">
+    </div>
+
+    <button type="submit"
+            class="w-full px-4 py-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-indigo-600 text-white font-semibold hover:opacity-95 shadow-sm">
+      Générer l’histoire
+    </button>
+  </form>
+
+  <div class="mt-4">
+    <a href="{% url 'dashboard' %}" class="text-sm font-semibold text-indigo-700 hover:underline">← Retour</a>
+  </div>
+</div>
+{% endblock %}

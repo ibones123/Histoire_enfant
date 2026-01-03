@@ -1,0 +1,70 @@
+{% extends "accounts/base.html" %}
+{% block titre %}Tableau de bord{% endblock %}
+
+{% block contenu %}
+<div class="space-y-6">
+  <div class="bg-white border rounded-3xl p-6 shadow-sm">
+    <h1 class="text-2xl font-extrabold tracking-tight">Mon tableau de bord</h1>
+    <p class="mt-1 text-sm text-slate-600">Connecté : <strong>{{ user.username }}</strong></p>
+  </div>
+
+  <div class="grid gap-4 md:grid-cols-2">
+    <!-- enfants -->
+    <div class="bg-white border rounded-3xl p-6 shadow-sm">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="text-lg font-bold">👶 Mes enfants</h2>
+        <a class="px-3 py-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-indigo-600 text-white text-sm font-semibold hover:opacity-95"
+           href="{% url 'ajouter_enfant' %}">+ Ajouter</a>
+      </div>
+
+      {% if enfants %}
+        <ul class="mt-4 space-y-2">
+          {% for enfant in enfants %}
+            <li class="p-4 rounded-2xl border bg-slate-50 flex items-center justify-between">
+              <div>
+                <div class="font-semibold">{{ enfant.prenom }}</div>
+                <div class="text-sm text-slate-600">{{ enfant.age }} ans</div>
+              </div>
+              <span class="text-xs px-2 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700">
+                Profil
+              </span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="mt-4 text-slate-600">Aucun enfant pour l’instant.</p>
+      {% endif %}
+    </div>
+
+    <!-- histoires -->
+    <div class="bg-white border rounded-3xl p-6 shadow-sm">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="text-lg font-bold">📚 Mes histoires</h2>
+        <a class="px-3 py-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-indigo-600 text-white text-sm font-semibold hover:opacity-95"
+           href="{% url 'creer_histoire' %}">+ Créer</a>
+      </div>
+
+      {% if histoires %}
+        <ul class="mt-4 space-y-2">
+          {% for histoire in histoires %}
+            <li class="p-4 rounded-2xl border bg-white">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="font-semibold">{{ histoire.titre }}</div>
+                  <div class="text-sm text-slate-600">{{ histoire.date_creation }}</div>
+                </div>
+                <a class="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50 text-sm"
+                   href="{% url 'voir_histoire' histoire.id %}">
+                  Ouvrir →
+                </a>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="mt-4 text-slate-600">Aucune histoire pour l’instant.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

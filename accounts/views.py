@@ -1,0 +1,309 @@
+import os
+
+from django.conf import settings
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
+from django.http import FileResponse, JsonResponse
+from django.shortcuts import render, redirect
+
+from stories.models import Enfant, Histoire, Chapitre
+from stories.services.mistral import generer_histoire
+from stories.services.pollinations import generer_image_base64
+from stories.services.audio import texte_vers_audio_mp3
+from stories.services.traduction import traduire_texte
+
+def extrait_pour_image(texte: str, max_chars: int = 260) -> str:
+    if not texte:
+        return ""
+    texte = texte.replace("\n", " ").strip()
+    if len(texte) > max_chars:
+        texte = texte[:max_chars].rsplit(" ", 1)[0] + "..."
+    return texte
+
+
+
+def accueil(request):
+    if request.user.is_authenticated:
+        return redirect("dashboard")
+    return render(request, "accounts/accueil.html")
+
+from django.contrib.auth.models import User
+from django.contrib.auth import login
+
+def inscription(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password1 = request.POST.get("password1")
+        password2 = request.POST.get("password2")
+
+        if not username or not password1 or not password2:
+            return render(request, "accounts/inscription.html", {"erreur": "Remplis tous les champs."})
+
+        if password1 != password2:
+            return render(request, "accounts/inscription.html", {"erreur": "Les mots de passe ne correspondent pas."})
+
+        if User.objects.filter(username=username).exists():
+            return render(request, "accounts/inscription.html", {"erreur": "Ce nom d'utilisateur est déjà pris."})
+
+        user = User.objects.create_user(username=username, password=password1)
+        login(request, user)
+        return redirect("dashboard")
+
+    return render(request, "accounts/inscription.html")
+
+
+
+def connexion(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+
+        utilisateur = authenticate(request, username=username, password=password)
+
+        if utilisateur is not None:
+            login(request, utilisateur)
+            return redirect("dashboard")
+
+        return render(request, "accounts/connexion.html", {"erreur": "Identifiants invalides."})
+
+    return render(request, "accounts/connexion.html")
+
+
+def deconnexion(request):
+    logout(request)
+    return redirect("accueil")
+
+
+
+
+@login_required
+def dashboard(request):
+    enfants = Enfant.objects.filter(parent=request.user)
+    histoires = Histoire.objects.filter(enfant__parent=request.user).order_by("-date_creation")
+
+    return render(request, "accounts/dashboard.html", {
+        "enfants": enfants,
+        "histoires": histoires,
+    })
+
+@login_required
+def ajouter_enfant(request):
+    if request.method == "POST":
+        prenom = request.POST.get("prenom")
+        age = request.POST.get("age")
+
+        if not prenom or not age:
+            return render(request, "accounts/ajouter_enfant.html", {"erreur": "Prénom et âge obligatoires."})
+
+        Enfant.objects.create(
+            parent=request.user,
+            prenom=prenom,
+            age=int(age)
+        )
+        return redirect("dashboard")
+
+    return render(request, "accounts/ajouter_enfant.html")
+
+
+@login_required
+def generation_histoire(request, histoire_id):
+    histoire = Histoire.objects.get(id=histoire_id, enfant__parent=request.user)
+    chapitres = Chapitre.objects.filter(histoire=histoire).order_by("numero")
+
+    return render(request, "accounts/generation.html", {
+        "histoire": histoire,
+        "chapitres": chapitres,
+    })
+
+
+
+
+@login_required
+def creer_histoire(request):
+    enfants = Enfant.objects.filter(parent=request.user)
+
+    if request.method == "POST":
+        enfant_id = request.POST.get("enfant_id")
+        titre = request.POST.get("titre")
+
+        if not enfant_id or not titre:
+            return render(request, "accounts/creer_histoire.html", {
+                "enfants": enfants,
+                "erreur": "Choisis un enfant et mets un titre."
+            })
+
+        enfant = Enfant.objects.get(id=enfant_id, parent=request.user)
+
+        # 1) Générer l'histoire (texte) avec Mistral
+        resultat = generer_histoire(
+            prenom_enfant=enfant.prenom,
+            age=enfant.age,
+            mots_cles=titre,
+            ton="doux"
+        )
+
+        # 2) Créer l'histoire en base
+        histoire = Histoire.objects.create(
+            enfant=enfant,
+            titre=titre,
+            morale=resultat.get("morale", "")
+        )
+
+        # 3) Créer les chapitres SANS images (image_base64 = "")
+        chapitres = resultat.get("chapitres", [])
+        for ch in chapitres:
+            Chapitre.objects.create(
+                histoire=histoire,
+                numero=ch.get("numero"),
+                titre=ch.get("titre", ""),
+                texte=ch.get("texte", ""),
+                image_base64=""   # important : vide pour que la page génération sache quoi faire
+            )
+
+        # 4) Rediriger vers la page de génération (barre de progression)
+        return redirect("generation_histoire", histoire_id=histoire.id)
+
+    return render(request, "accounts/creer_histoire.html", {"enfants": enfants})
+
+@login_required
+def voir_histoire(request, histoire_id):
+    histoire = Histoire.objects.get(id=histoire_id, enfant__parent=request.user)
+    chapitres = Chapitre.objects.filter(histoire=histoire).order_by("numero")
+    langue = request.GET.get("langue", "fr")
+
+    if langue != "fr":
+        histoire.titre = traduire_texte(histoire.titre, langue)
+        histoire.morale = traduire_texte(histoire.morale, langue)
+
+        for chapitre in chapitres:
+            chapitre.titre = traduire_texte(chapitre.titre, langue)
+            chapitre.texte = traduire_texte(chapitre.texte, langue)
+
+    return render(request, "accounts/voir_histoire.html", {
+        "histoire": histoire,
+        "chapitres": chapitres,
+        "langue": langue,
+
+    })
+
+
+
+
+@login_required
+def audio_histoire(request, histoire_id):
+    langue = request.GET.get("langue", "fr")
+    if langue not in ["fr", "en", "es", "ar"]:
+        langue = "fr"
+
+    histoire = Histoire.objects.get(id=histoire_id, enfant__parent=request.user)
+    chapitres = Chapitre.objects.filter(histoire=histoire).order_by("numero")
+
+    # --- construire le texte à lire (et traduire si besoin) ---
+    titre = histoire.titre or ""
+    morale = histoire.morale or ""
+
+    if langue != "fr":
+        titre = traduire_texte(titre, langue)
+        morale = traduire_texte(morale, langue)
+
+    texte_a_lire = f"{titre}. "
+
+    for ch in chapitres:
+        ch_titre = ch.titre or ""
+        ch_texte = ch.texte or ""
+
+        if langue != "fr":
+            ch_titre = traduire_texte(ch_titre, langue)
+            ch_texte = traduire_texte(ch_texte, langue)
+
+        texte_a_lire += f"{ch_titre}. {ch_texte}. "
+
+    if morale:
+        texte_a_lire += f"{morale}."
+
+    # --- cache mp3 ---
+    nom_fichier = f"histoire_{histoire_id}_{langue}.mp3"
+    chemin_mp3 = os.path.join(settings.MEDIA_ROOT, "audio", nom_fichier)
+
+    if not os.path.exists(chemin_mp3):
+        texte_vers_audio_mp3(texte_a_lire, langue, chemin_mp3)
+
+    return FileResponse(open(chemin_mp3, "rb"), content_type="audio/mpeg")
+
+
+@login_required
+def audio_chapitre(request, chapitre_id):
+    langue = request.GET.get("langue", "fr")
+    if langue not in ["fr", "en", "es", "ar"]:
+        langue = "fr"
+
+    chapitre = Chapitre.objects.get(
+        id=chapitre_id,
+        histoire__enfant__parent=request.user
+    )
+
+    # texte à lire (on traduit si besoin)
+    titre = chapitre.titre
+    texte = chapitre.texte
+
+    if langue != "fr":
+        titre = traduire_texte(titre, langue)
+        texte = traduire_texte(texte, langue)
+
+    texte_a_lire = f"{titre}. {texte}."
+
+    # cache du mp3
+    nom_fichier = f"chapitre_{chapitre_id}_{langue}.mp3"
+    chemin_mp3 = os.path.join(settings.MEDIA_ROOT, "audio", nom_fichier)
+
+    if not os.path.exists(chemin_mp3):
+        texte_vers_audio_mp3(texte_a_lire, langue, chemin_mp3)
+
+    return FileResponse(open(chemin_mp3, "rb"), content_type="audio/mpeg")
+
+
+
+from django.http import JsonResponse
+from stories.services.pollinations import generer_image_base64
+
+@login_required
+def api_generer_image(request, histoire_id):
+    histoire = Histoire.objects.get(id=histoire_id, enfant__parent=request.user)
+
+    # 1) on prend le premier chapitre sans image
+    chapitre = Chapitre.objects.filter(
+        histoire=histoire,
+        image_base64=""
+    ).order_by("numero").first()
+
+    if chapitre is None:
+        return JsonResponse({"termine": True})
+
+    # 2) prompt "scène" basé sur le texte du chapitre
+    extrait = extrait_pour_image(chapitre.texte)
+    prenom = histoire.enfant.prenom
+    age = histoire.enfant.age
+
+    prompt_image = (
+        "Illustration de livre pour enfant, dessin doux, couleurs pastel, style conte. "
+        "Une seule scène claire, personnages mignons, lumière chaleureuse, décor simple. "
+        "Pas de texte, pas de watermark, pas de logo. "
+        f"Personnage principal: un enfant nommé {prenom}, environ {age} ans. "
+        f"Scène à illustrer: {chapitre.titre}. {extrait}"
+    )
+
+    # 3) seed différent par chapitre (évite image identique)
+    seed = chapitre.id
+
+    try:
+        chapitre.image_base64 = generer_image_base64(prompt_image, seed=seed)
+        chapitre.save()
+        return JsonResponse({"termine": False, "chapitre_ok": chapitre.numero})
+    except Exception as e:
+        # on continue même si un chapitre échoue
+        return JsonResponse({
+            "termine": False,
+            "erreur": str(e),
+            "chapitre": chapitre.numero
+        }, status=200)
