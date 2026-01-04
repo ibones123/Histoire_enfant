@@ -1,25 +1,25 @@
 {% extends "accounts/base.html" %}
-{% block titre %}Génération{% endblock %}
+{% block title %}Génération{% endblock %}
 
-{% block contenu %}
-<div class="bg-white border rounded-3xl p-6 shadow-sm max-w-xl mx-auto">
-  <h1 class="text-2xl font-extrabold tracking-tight">Génération en cours ✨</h1>
-  <p class="mt-2 text-slate-600">On prépare les illustrations chapitre par chapitre…</p>
+{% block content %}
+<div class="max-w-xl mx-auto bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
 
-  <div class="mt-6">
-    <div class="flex justify-between text-sm text-slate-600 mb-2">
+  <h1 class="text-2xl font-semibold text-violet-700">Génération en cours</h1>
+  <p class="mt-2 text-gray-600">Illustrations en préparation, chapitre par chapitre.</p>
+
+  <div class="mt-8">
+    <div class="flex justify-between text-sm text-gray-600 mb-2">
       <span id="etat">Démarrage…</span>
       <span><span id="pourcentage">0</span>%</span>
     </div>
 
-    <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-      <div id="barre" class="h-3 w-0 bg-gradient-to-r from-fuchsia-600 to-indigo-600 rounded-full"></div>
+    <div class="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+      <div id="barre" class="h-3 w-0 bg-violet-600 rounded-full transition-all"></div>
     </div>
-  </div>
 
-  <div class="mt-6 text-sm text-slate-600">
-    <p>Histoire : <strong>{{ histoire.titre }}</strong></p>
-    <p>Chapitres : <strong id="done">0</strong> / <strong id="total">{{ chapitres|length }}</strong></p>
+    <p class="mt-4 text-sm text-gray-600">
+      <span id="done">0</span> / <span id="total">{{ chapitres|length }}</span> chapitres
+    </p>
   </div>
 </div>
 
@@ -36,13 +36,11 @@
 
   async function step() {
     const url = "{% url 'api_generer_image' histoire.id %}";
-    document.getElementById("etat").textContent = "Génération des images…";
-
     const res = await fetch(url);
     const data = await res.json();
 
     if (data.termine) {
-      document.getElementById("etat").textContent = "Terminé ✅ Redirection…";
+      document.getElementById("etat").textContent = "Terminé";
       document.getElementById("barre").style.width = "100%";
       document.getElementById("pourcentage").textContent = "100";
       setTimeout(() => {
@@ -55,11 +53,9 @@
     setProgress();
 
     if (data.erreur) {
-      document.getElementById("etat").textContent =
-        "Chapitre " + data.chapitre + " : erreur, on continue…";
+      document.getElementById("etat").textContent = "Chapitre " + data.chapitre + " : erreur (on continue)";
     } else {
-      document.getElementById("etat").textContent =
-        "Chapitre " + data.chapitre_ok + " généré ✅";
+      document.getElementById("etat").textContent = "Chapitre " + data.chapitre_ok + " généré";
     }
 
     setTimeout(step, 500);

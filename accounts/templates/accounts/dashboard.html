@@ -1,70 +1,126 @@
 {% extends "accounts/base.html" %}
-{% block titre %}Tableau de bord{% endblock %}
+{% block title %}Dashboard{% endblock %}
 
-{% block contenu %}
-<div class="space-y-6">
-  <div class="bg-white border rounded-3xl p-6 shadow-sm">
-    <h1 class="text-2xl font-extrabold tracking-tight">Mon tableau de bord</h1>
-    <p class="mt-1 text-sm text-slate-600">Connecté : <strong>{{ user.username }}</strong></p>
+{% block content %}
+
+<!-- Header page -->
+<div class="flex items-start justify-between gap-6 mb-8">
+  <div>
+    <h1 class="text-3xl font-semibold tracking-tight text-violet-700">Tableau de bord</h1>
+    <p class="mt-2 text-gray-600">
+      Gérez vos enfants et vos histoires en un seul endroit.
+    </p>
   </div>
 
-  <div class="grid gap-4 md:grid-cols-2">
-    <!-- enfants -->
-    <div class="bg-white border rounded-3xl p-6 shadow-sm">
-      <div class="flex items-center justify-between gap-3">
-        <h2 class="text-lg font-bold">👶 Mes enfants</h2>
-        <a class="px-3 py-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-indigo-600 text-white text-sm font-semibold hover:opacity-95"
-           href="{% url 'ajouter_enfant' %}">+ Ajouter</a>
-      </div>
+  <div class="flex gap-3">
+    <a href="{% url 'ajouter_enfant' %}"
+       class="px-4 py-2 rounded-lg bg-white border border-gray-200 hover:border-violet-200 hover:text-violet-700 transition text-sm">
+      Ajouter un enfant
+    </a>
 
-      {% if enfants %}
-        <ul class="mt-4 space-y-2">
-          {% for enfant in enfants %}
-            <li class="p-4 rounded-2xl border bg-slate-50 flex items-center justify-between">
-              <div>
-                <div class="font-semibold">{{ enfant.prenom }}</div>
-                <div class="text-sm text-slate-600">{{ enfant.age }} ans</div>
-              </div>
-              <span class="text-xs px-2 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700">
-                Profil
-              </span>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="mt-4 text-slate-600">Aucun enfant pour l’instant.</p>
-      {% endif %}
-    </div>
-
-    <!-- histoires -->
-    <div class="bg-white border rounded-3xl p-6 shadow-sm">
-      <div class="flex items-center justify-between gap-3">
-        <h2 class="text-lg font-bold">📚 Mes histoires</h2>
-        <a class="px-3 py-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-indigo-600 text-white text-sm font-semibold hover:opacity-95"
-           href="{% url 'creer_histoire' %}">+ Créer</a>
-      </div>
-
-      {% if histoires %}
-        <ul class="mt-4 space-y-2">
-          {% for histoire in histoires %}
-            <li class="p-4 rounded-2xl border bg-white">
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <div class="font-semibold">{{ histoire.titre }}</div>
-                  <div class="text-sm text-slate-600">{{ histoire.date_creation }}</div>
-                </div>
-                <a class="px-3 py-2 rounded-xl border bg-white hover:bg-slate-50 text-sm"
-                   href="{% url 'voir_histoire' histoire.id %}">
-                  Ouvrir →
-                </a>
-              </div>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="mt-4 text-slate-600">Aucune histoire pour l’instant.</p>
-      {% endif %}
-    </div>
+    <a href="{% url 'creer_histoire' %}"
+       class="px-4 py-2 rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition text-sm">
+      Nouvelle histoire
+    </a>
   </div>
 </div>
+
+<!-- Grille principale -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- Bloc enfants -->
+  <section class="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-semibold text-gray-800">Mes enfants</h2>
+        <p class="text-sm text-gray-500">Profils pour personnaliser les histoires</p>
+      </div>
+      <div class="text-xs px-3 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-100">
+        {{ enfants|length }} profil(s)
+      </div>
+    </div>
+
+    <div class="p-6">
+      {% if enfants %}
+        <div class="space-y-3">
+          {% for enfant in enfants %}
+            <div class="p-4 rounded-xl border border-gray-100 hover:border-violet-200 transition">
+              <div class="flex items-start justify-between">
+                <div>
+                  <div class="font-semibold text-gray-800">{{ enfant.prenom }}</div>
+                  <div class="text-sm text-gray-500">{{ enfant.age }} ans</div>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-violet-50 border border-violet-100"></div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="p-5 rounded-xl bg-violet-50 border border-violet-100">
+          <p class="text-sm text-gray-700">Aucun enfant enregistré pour le moment.</p>
+          <a href="{% url 'ajouter_enfant' %}" class="text-sm text-violet-700 hover:underline mt-2 inline-block">
+            Ajouter un enfant
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- Bloc histoires -->
+  <section class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-semibold text-gray-800">Mes histoires</h2>
+        <p class="text-sm text-gray-500">Accès rapide aux histoires générées</p>
+      </div>
+      <div class="text-xs px-3 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-100">
+        {{ histoires|length }} histoire(s)
+      </div>
+    </div>
+
+    <div class="p-6">
+      {% if histoires %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {% for histoire in histoires %}
+            <article class="p-5 rounded-xl border border-gray-100 hover:border-violet-200 transition">
+              <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0">
+                  <h3 class="font-semibold text-gray-900 truncate">{{ histoire.titre }}</h3>
+                  <p class="text-sm text-gray-500 mt-1">
+                    Créée le {{ histoire.date_creation|date:"d/m/Y" }}
+                  </p>
+                  <p class="text-sm text-gray-600 mt-3">
+                    Enfant : <span class="font-medium">{{ histoire.enfant.prenom }}</span>
+                  </p>
+                </div>
+                <div class="w-12 h-12 rounded-2xl bg-violet-50 border border-violet-100 shrink-0"></div>
+              </div>
+
+              <div class="mt-5 flex items-center justify-between">
+                <a href="{% url 'voir_histoire' histoire.id %}"
+                   class="text-sm text-violet-700 hover:underline">
+                  Ouvrir
+                </a>
+
+                <a href="{% url 'audio_histoire' histoire.id %}?langue=fr"
+                   class="text-sm px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:border-violet-200 hover:text-violet-700 transition">
+                  Audio
+                </a>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="p-5 rounded-xl bg-violet-50 border border-violet-100">
+          <p class="text-sm text-gray-700">Aucune histoire créée pour le moment.</p>
+          <a href="{% url 'creer_histoire' %}" class="text-sm text-violet-700 hover:underline mt-2 inline-block">
+            Créer une histoire
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+</div>
+
 {% endblock %}
