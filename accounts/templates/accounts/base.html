@@ -3,7 +3,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>{% block title %}Conteur d’histoires{% endblock %}</title>
+  <title>{% block title %}Histoire pour enfant{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="{% static 'css/tailwind.css' %}" rel="stylesheet">
 </head>
@@ -16,7 +16,7 @@
       <a href="{% url 'accueil' %}" class="flex items-center gap-3">
         <div class="w-9 h-9 rounded-xl bg-violet-600"></div>
         <div>
-          <div class="text-base font-semibold tracking-tight text-violet-700">Conteur d’histoires</div>
+          <div class="text-base font-semibold tracking-tight text-violet-700">Histoire pour enfant</div>
           <div class="text-xs text-gray-500">Histoires personnalisées, audio et traduction</div>
         </div>
       </a>
@@ -50,12 +50,7 @@
   </main>
 
   <!-- FOOTER -->
-  <footer class="border-t border-gray-200 bg-white/60">
-    <div class="max-w-6xl mx-auto px-6 py-6 text-xs text-gray-500 flex justify-between">
-      <span>© {% now "Y" %} Conteur d’histoires</span>
-      <span class="text-gray-400">Version projet</span>
-    </div>
-  </footer>
+
 
 </body>
 </html>

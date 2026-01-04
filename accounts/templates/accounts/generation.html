@@ -28,10 +28,12 @@
   let done = 0;
 
   function setProgress() {
-    const pct = total === 0 ? 100 : Math.round((done / total) * 100);
+    const safeDone = Math.min(done, total);
+    const pct = total === 0 ? 100 : Math.round((safeDone / total) * 100);
+
     document.getElementById("pourcentage").textContent = pct;
     document.getElementById("barre").style.width = pct + "%";
-    document.getElementById("done").textContent = done;
+    document.getElementById("done").textContent = safeDone;
   }
 
   async function step() {
@@ -40,28 +42,32 @@
     const data = await res.json();
 
     if (data.termine) {
+      done = total;
+      setProgress();
       document.getElementById("etat").textContent = "Terminé";
-      document.getElementById("barre").style.width = "100%";
-      document.getElementById("pourcentage").textContent = "100";
+
       setTimeout(() => {
         window.location.href = "{% url 'voir_histoire' histoire.id %}";
       }, 700);
       return;
     }
 
-    done += 1;
+    done = Math.min(done + 1, total);
     setProgress();
 
     if (data.erreur) {
-      document.getElementById("etat").textContent = "Chapitre " + data.chapitre + " : erreur (on continue)";
+      document.getElementById("etat").textContent =
+        "Chapitre " + data.chapitre + " : erreur (on continue)";
     } else {
-      document.getElementById("etat").textContent = "Chapitre " + data.chapitre_ok + " généré";
+      document.getElementById("etat").textContent =
+        "Chapitre " + data.chapitre_ok + " généré";
     }
 
-    setTimeout(step, 500);
+    setTimeout(step, 600);
   }
 
   setProgress();
   step();
 </script>
+
 {% endblock %}

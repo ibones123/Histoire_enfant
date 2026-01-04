@@ -135,7 +135,6 @@ def creer_histoire(request):
 
         enfant = Enfant.objects.get(id=enfant_id, parent=request.user)
 
-        # 1) Générer l'histoire (texte) avec Mistral
         resultat = generer_histoire(
             prenom_enfant=enfant.prenom,
             age=enfant.age,
@@ -143,14 +142,12 @@ def creer_histoire(request):
             ton="doux"
         )
 
-        # 2) Créer l'histoire en base
         histoire = Histoire.objects.create(
             enfant=enfant,
             titre=titre,
             morale=resultat.get("morale", "")
         )
 
-        # 3) Créer les chapitres SANS images (image_base64 = "")
         chapitres = resultat.get("chapitres", [])
         for ch in chapitres:
             Chapitre.objects.create(
@@ -158,10 +155,9 @@ def creer_histoire(request):
                 numero=ch.get("numero"),
                 titre=ch.get("titre", ""),
                 texte=ch.get("texte", ""),
-                image_base64=""   # important : vide pour que la page génération sache quoi faire
+                image_base64=""   
             )
 
-        # 4) Rediriger vers la page de génération (barre de progression)
         return redirect("generation_histoire", histoire_id=histoire.id)
 
     return render(request, "accounts/creer_histoire.html", {"enfants": enfants})
@@ -199,7 +195,6 @@ def audio_histoire(request, histoire_id):
     histoire = Histoire.objects.get(id=histoire_id, enfant__parent=request.user)
     chapitres = Chapitre.objects.filter(histoire=histoire).order_by("numero")
 
-    # --- construire le texte à lire (et traduire si besoin) ---
     titre = histoire.titre or ""
     morale = histoire.morale or ""
 
@@ -222,7 +217,6 @@ def audio_histoire(request, histoire_id):
     if morale:
         texte_a_lire += f"{morale}."
 
-    # --- cache mp3 ---
     nom_fichier = f"histoire_{histoire_id}_{langue}.mp3"
     chemin_mp3 = os.path.join(settings.MEDIA_ROOT, "audio", nom_fichier)
 
@@ -243,7 +237,6 @@ def audio_chapitre(request, chapitre_id):
         histoire__enfant__parent=request.user
     )
 
-    # texte à lire (on traduit si besoin)
     titre = chapitre.titre
     texte = chapitre.texte
 
@@ -253,7 +246,6 @@ def audio_chapitre(request, chapitre_id):
 
     texte_a_lire = f"{titre}. {texte}."
 
-    # cache du mp3
     nom_fichier = f"chapitre_{chapitre_id}_{langue}.mp3"
     chemin_mp3 = os.path.join(settings.MEDIA_ROOT, "audio", nom_fichier)
 
@@ -271,7 +263,6 @@ from stories.services.pollinations import generer_image_base64
 def api_generer_image(request, histoire_id):
     histoire = Histoire.objects.get(id=histoire_id, enfant__parent=request.user)
 
-    # 1) on prend le premier chapitre sans image
     chapitre = Chapitre.objects.filter(
         histoire=histoire,
         image_base64=""
@@ -280,7 +271,6 @@ def api_generer_image(request, histoire_id):
     if chapitre is None:
         return JsonResponse({"termine": True})
 
-    # 2) prompt "scène" basé sur le texte du chapitre
     extrait = extrait_pour_image(chapitre.texte)
     prenom = histoire.enfant.prenom
     age = histoire.enfant.age
@@ -293,7 +283,6 @@ def api_generer_image(request, histoire_id):
         f"Scène à illustrer: {chapitre.titre}. {extrait}"
     )
 
-    # 3) seed différent par chapitre (évite image identique)
     seed = chapitre.id
 
     try:
@@ -301,7 +290,6 @@ def api_generer_image(request, histoire_id):
         chapitre.save()
         return JsonResponse({"termine": False, "chapitre_ok": chapitre.numero})
     except Exception as e:
-        # on continue même si un chapitre échoue
         return JsonResponse({
             "termine": False,
             "erreur": str(e),
