@@ -7,6 +7,13 @@ from django.contrib.auth.models import User
 from django.http import FileResponse, JsonResponse
 from django.shortcuts import render, redirect
 
+from django.http import JsonResponse
+from stories.services.pollinations import generer_image_base64
+
+
+from django.http import JsonResponse
+from django.db.models import Q
+
 from stories.models import Enfant, Histoire, Chapitre
 from stories.services.mistral import generer_histoire
 from stories.services.pollinations import generer_image_base64
@@ -256,20 +263,42 @@ def audio_chapitre(request, chapitre_id):
 
 
 
-from django.http import JsonResponse
-from stories.services.pollinations import generer_image_base64
+MAX_TENTATIVES_IMAGE = 3
 
 @login_required
 def api_generer_image(request, histoire_id):
     histoire = Histoire.objects.get(id=histoire_id, enfant__parent=request.user)
 
-    chapitre = Chapitre.objects.filter(
-        histoire=histoire,
-        image_base64=""
-    ).order_by("numero").first()
+    # 1) On cherche un chapitre "à faire"
+    # - pas d'image
+    # - pas déjà ok
+    # - tentatives < MAX
+    chapitre = (Chapitre.objects
+        .filter(histoire=histoire)
+        .filter(Q(image_base64="") | Q(image_base64__isnull=True))
+        .exclude(image_statut="ok")
+        .filter(image_tentatives__lt=MAX_TENTATIVES_IMAGE)
+        .order_by("numero")
+        .first()
+    )
 
+    # 2) Si aucun chapitre à faire, alors c'est terminé (ou bien il reste des erreurs mais on ne bloque pas)
     if chapitre is None:
-        return JsonResponse({"termine": True})
+        total = Chapitre.objects.filter(histoire=histoire).count()
+        ok_count = Chapitre.objects.filter(histoire=histoire, image_statut="ok").count()
+        erreur_count = Chapitre.objects.filter(histoire=histoire, image_statut="erreur").count()
+
+        return JsonResponse({
+            "termine": True,
+            "total": total,
+            "ok": ok_count,
+            "erreur": erreur_count,
+        })
+
+    # 3) On marque "en cours" + on incrémente les tentatives
+    chapitre.image_statut = "en_cours"
+    chapitre.image_tentatives += 1
+    chapitre.save()
 
     extrait = extrait_pour_image(chapitre.texte)
     prenom = histoire.enfant.prenom
@@ -287,11 +316,45 @@ def api_generer_image(request, histoire_id):
 
     try:
         chapitre.image_base64 = generer_image_base64(prompt_image, seed=seed)
+        chapitre.image_statut = "ok"
+        chapitre.image_derniere_erreur = ""
         chapitre.save()
-        return JsonResponse({"termine": False, "chapitre_ok": chapitre.numero})
-    except Exception as e:
+
+        total = Chapitre.objects.filter(histoire=histoire).count()
+        ok_count = Chapitre.objects.filter(histoire=histoire, image_statut="ok").count()
+        erreur_count = Chapitre.objects.filter(histoire=histoire, image_statut="erreur").count()
+
         return JsonResponse({
             "termine": False,
-            "erreur": str(e),
-            "chapitre": chapitre.numero
+            "chapitre_ok": chapitre.numero,
+            "total": total,
+            "ok": ok_count,
+            "erreur": erreur_count,
+        })
+
+    except Exception as e:
+        # IMPORTANT : on ne reste pas bloqué → on marque le chapitre en erreur si on a atteint la limite
+        msg = str(e)
+
+        if chapitre.image_tentatives >= MAX_TENTATIVES_IMAGE:
+            chapitre.image_statut = "erreur"
+        else:
+            chapitre.image_statut = "pas_commence"  # on pourra retenter encore (jusqu'à MAX)
+
+        chapitre.image_derniere_erreur = msg
+        chapitre.save()
+
+        total = Chapitre.objects.filter(histoire=histoire).count()
+        ok_count = Chapitre.objects.filter(histoire=histoire, image_statut="ok").count()
+        erreur_count = Chapitre.objects.filter(histoire=histoire, image_statut="erreur").count()
+
+        return JsonResponse({
+            "termine": False,
+            "erreur": msg,
+            "chapitre": chapitre.numero,
+            "tentatives": chapitre.image_tentatives,
+            "max_tentatives": MAX_TENTATIVES_IMAGE,
+            "total": total,
+            "ok": ok_count,
+            "erreur_count": erreur_count,
         }, status=200)

@@ -28,7 +28,20 @@ class Chapitre(models.Model):
     titre = models.CharField(max_length=200)
     texte = models.TextField()
     image_base64 = models.TextField(blank=True)
+    IMAGE_STATUT_CHOICES = [
+        ("pas_commence", "Pas commencé"),
+        ("en_cours", "En cours"),
+        ("ok", "OK"),
+        ("erreur", "Erreur"),
+    ]
 
+    image_statut = models.CharField(
+        max_length=20,
+        choices=IMAGE_STATUT_CHOICES,
+        default="pas_commence"
+    )
+    image_tentatives = models.PositiveIntegerField(default=0)
+    image_derniere_erreur = models.TextField(blank=True, default="")
 
     def __str__(self):
         return f"Chapitre {self.numero} - {self.titre}"

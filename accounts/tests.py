@@ -82,7 +82,6 @@ class TestHistoires(TestCase):
         self.assertEqual(histoire.morale, "Toujours croire en soi.")
         self.assertEqual(Chapitre.objects.filter(histoire=histoire).count(), 2)
 
-        # redirection vers generation
         self.assertIn(reverse("generation_histoire", args=[histoire.id]), rep["Location"])
 
     @patch("accounts.views.generer_image_base64")

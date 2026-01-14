@@ -25,26 +25,30 @@
 
 <script>
   const total = Number(document.getElementById("total").textContent);
-  let done = 0;
 
-  function setProgress() {
-    const safeDone = Math.min(done, total);
-    const pct = total === 0 ? 100 : Math.round((safeDone / total) * 100);
+  function setProgress(okCount) {
+    const safeOk = Math.min(okCount, total);
+    const pct = total === 0 ? 100 : Math.round((safeOk / total) * 100);
 
     document.getElementById("pourcentage").textContent = pct;
     document.getElementById("barre").style.width = pct + "%";
-    document.getElementById("done").textContent = safeDone;
+    document.getElementById("done").textContent = safeOk;
   }
 
   async function step() {
     const url = "{% url 'api_generer_image' histoire.id %}";
+
     const res = await fetch(url);
     const data = await res.json();
 
+    // data.ok = nombre d'images ok
+    if (typeof data.ok === "number") {
+      setProgress(data.ok);
+    }
+
     if (data.termine) {
-      done = total;
-      setProgress();
-      document.getElementById("etat").textContent = "Terminé";
+      document.getElementById("etat").textContent =
+        "Terminé (" + (data.ok ?? 0) + "/" + (data.total ?? total) + " images, " + (data.erreur ?? 0) + " erreurs)";
 
       setTimeout(() => {
         window.location.href = "{% url 'voir_histoire' histoire.id %}";
@@ -52,22 +56,21 @@
       return;
     }
 
-    done = Math.min(done + 1, total);
-    setProgress();
-
     if (data.erreur) {
       document.getElementById("etat").textContent =
-        "Chapitre " + data.chapitre + " : erreur (on continue)";
+        "Chapitre " + data.chapitre + " : erreur (tentative " + data.tentatives + "/" + data.max_tentatives + ")";
     } else {
       document.getElementById("etat").textContent =
         "Chapitre " + data.chapitre_ok + " généré";
     }
 
-    setTimeout(step, 600);
+    // Un peu plus lent que 600ms pour éviter de spam + laisser respirer le serveur
+    setTimeout(step, 1500);
   }
 
-  setProgress();
+  setProgress(0);
   step();
 </script>
+
 
 {% endblock %}
