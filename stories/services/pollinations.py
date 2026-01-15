@@ -13,14 +13,11 @@ def generer_image_base64(prompt: str, seed: int = 1) -> str:
 
 
 def _generer_pollinations_image(prompt: str, seed: int) -> str:
-    # Nettoyage léger
     clean_prompt = re.sub(r"[^\w\s,.-]", "", prompt).strip()
 
-    # On coupe si trop long (Pollinations peut bug si prompt énorme)
     if len(clean_prompt) > 450:
         clean_prompt = clean_prompt[:450].rsplit(" ", 1)[0] + "..."
 
-    # URL Pollinations (avec seed)
     url = (
         "https://image.pollinations.ai/prompt/"
         f"{urllib.parse.quote_plus(clean_prompt)}"

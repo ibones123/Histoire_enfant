@@ -7,7 +7,6 @@ from stories.models import Enfant, Histoire, Chapitre
 
 # Create your tests here.
 
-
 class TestAccounts(TestCase):
 
     def creer_user_et_login(self):
@@ -29,7 +28,6 @@ class TestAccounts(TestCase):
     def test_dashboard_demande_login(self):
         url = reverse("dashboard")
         rep = self.client.get(url)
-        # redirect vers login (302)
         self.assertEqual(rep.status_code, 302)
 
     def test_dashboard_ok_quand_connecte(self):
@@ -94,7 +92,19 @@ class TestHistoires(TestCase):
         url = reverse("api_generer_image", args=[histoire.id])
         rep = self.client.get(url)
         self.assertEqual(rep.status_code, 200)
-        self.assertJSONEqual(rep.content, {"termine": True})
+
+        data = rep.json()
+
+        self.assertTrue(data["termine"])
+
+        self.assertEqual(data["total"], 1)
+
+
+        self.assertIn("ok", data)
+        self.assertIsInstance(data["ok"], int)
+
+        self.assertIn("erreur", data)
+        self.assertIsInstance(data["erreur"], int)
 
     @patch("accounts.views.generer_image_base64")
     def test_api_generer_image_genere_une_image_sur_un_chapitre_vide(self, mock_generer_image_base64):

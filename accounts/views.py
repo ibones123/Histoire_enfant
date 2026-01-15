@@ -10,6 +10,8 @@ from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from stories.services.pollinations import generer_image_base64
 
+from django.contrib.auth.models import User
+from django.contrib.auth import login
 
 from django.http import JsonResponse
 from django.db.models import Q
@@ -35,8 +37,6 @@ def accueil(request):
         return redirect("dashboard")
     return render(request, "accounts/accueil.html")
 
-from django.contrib.auth.models import User
-from django.contrib.auth import login
 
 def inscription(request):
     if request.method == "POST":
@@ -192,47 +192,6 @@ def voir_histoire(request, histoire_id):
 
 
 
-
-@login_required
-def audio_histoire(request, histoire_id):
-    langue = request.GET.get("langue", "fr")
-    if langue not in ["fr", "en", "es", "ar"]:
-        langue = "fr"
-
-    histoire = Histoire.objects.get(id=histoire_id, enfant__parent=request.user)
-    chapitres = Chapitre.objects.filter(histoire=histoire).order_by("numero")
-
-    titre = histoire.titre or ""
-    morale = histoire.morale or ""
-
-    if langue != "fr":
-        titre = traduire_texte(titre, langue)
-        morale = traduire_texte(morale, langue)
-
-    texte_a_lire = f"{titre}. "
-
-    for ch in chapitres:
-        ch_titre = ch.titre or ""
-        ch_texte = ch.texte or ""
-
-        if langue != "fr":
-            ch_titre = traduire_texte(ch_titre, langue)
-            ch_texte = traduire_texte(ch_texte, langue)
-
-        texte_a_lire += f"{ch_titre}. {ch_texte}. "
-
-    if morale:
-        texte_a_lire += f"{morale}."
-
-    nom_fichier = f"histoire_{histoire_id}_{langue}.mp3"
-    chemin_mp3 = os.path.join(settings.MEDIA_ROOT, "audio", nom_fichier)
-
-    if not os.path.exists(chemin_mp3):
-        texte_vers_audio_mp3(texte_a_lire, langue, chemin_mp3)
-
-    return FileResponse(open(chemin_mp3, "rb"), content_type="audio/mpeg")
-
-
 @login_required
 def audio_chapitre(request, chapitre_id):
     langue = request.GET.get("langue", "fr")
@@ -269,20 +228,16 @@ MAX_TENTATIVES_IMAGE = 3
 def api_generer_image(request, histoire_id):
     histoire = Histoire.objects.get(id=histoire_id, enfant__parent=request.user)
 
-    # 1) On cherche un chapitre "à faire"
-    # - pas d'image
-    # - pas déjà ok
-    # - tentatives < MAX
+
     chapitre = (Chapitre.objects
         .filter(histoire=histoire)
         .filter(Q(image_base64="") | Q(image_base64__isnull=True))
         .exclude(image_statut="ok")
-        .filter(image_tentatives__lt=MAX_TENTATIVES_IMAGE)
+        .filter(image_tentatives__lt=MAX_TENTATIVES_IMAGE)                                                              #less than
         .order_by("numero")
         .first()
     )
 
-    # 2) Si aucun chapitre à faire, alors c'est terminé (ou bien il reste des erreurs mais on ne bloque pas)
     if chapitre is None:
         total = Chapitre.objects.filter(histoire=histoire).count()
         ok_count = Chapitre.objects.filter(histoire=histoire, image_statut="ok").count()
@@ -295,7 +250,6 @@ def api_generer_image(request, histoire_id):
             "erreur": erreur_count,
         })
 
-    # 3) On marque "en cours" + on incrémente les tentatives
     chapitre.image_statut = "en_cours"
     chapitre.image_tentatives += 1
     chapitre.save()
@@ -333,13 +287,12 @@ def api_generer_image(request, histoire_id):
         })
 
     except Exception as e:
-        # IMPORTANT : on ne reste pas bloqué → on marque le chapitre en erreur si on a atteint la limite
         msg = str(e)
 
         if chapitre.image_tentatives >= MAX_TENTATIVES_IMAGE:
             chapitre.image_statut = "erreur"
         else:
-            chapitre.image_statut = "pas_commence"  # on pourra retenter encore (jusqu'à MAX)
+            chapitre.image_statut = "pas_commence" 
 
         chapitre.image_derniere_erreur = msg
         chapitre.save()

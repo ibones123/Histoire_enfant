@@ -7,11 +7,10 @@ def traduire_texte(texte: str, langue: str) -> str:
 
     cle_api = os.environ.get("MISTRAL_API_KEY")
     if not cle_api:
-        return texte  # fallback simple
+        return texte 
 
     client = Mistral(api_key=cle_api)
 
-    # on limite les langues autorisées
     langues_ok = {
         "fr": "français",
         "en": "anglais",

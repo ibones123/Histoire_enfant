@@ -3,7 +3,6 @@
 
 {% block content %}
 
-<!-- Header page -->
 <div class="flex items-start justify-between gap-6 mb-8">
   <div>
     <h1 class="text-3xl font-semibold tracking-tight text-violet-700">Tableau de bord</h1>
@@ -25,10 +24,8 @@
   </div>
 </div>
 
-<!-- Grille principale -->
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-  <!-- Bloc enfants -->
   <section class="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
     <div class="p-6 border-b border-gray-100 flex items-center justify-between">
       <div>
@@ -66,7 +63,6 @@
     </div>
   </section>
 
-  <!-- Bloc histoires -->
   <section class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
     <div class="p-6 border-b border-gray-100 flex items-center justify-between">
       <div>
@@ -102,10 +98,7 @@
                   Ouvrir
                 </a>
 
-                <a href="{% url 'audio_histoire' histoire.id %}?langue=fr"
-                   class="text-sm px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:border-violet-200 hover:text-violet-700 transition">
-                  Audio
-                </a>
+
               </div>
             </article>
           {% endfor %}

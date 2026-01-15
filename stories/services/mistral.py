@@ -44,7 +44,6 @@ Format JSON attendu :
 }}
 """.strip()
 
-    # JSON mode : force une réponse JSON (évite les textes "blabla")
     reponse = client.chat.complete(
         model="mistral-small-latest",
         messages=[{"role": "user", "content": consigne}],
@@ -53,13 +52,11 @@ Format JSON attendu :
 
     contenu = reponse.choices[0].message.content
 
-    # Selon les versions, contenu peut être un string ou une liste de morceaux
-    if isinstance(contenu, list):
+    if isinstance(contenu, list): # cas où Mistral renvoie une liste de parties
         texte = "".join(part.get("text", "") for part in contenu)
     else:
         texte = contenu
 
-    # Nettoyage au cas où (certains modèles mettent ```json)
     texte = (texte or "").strip()
     texte = texte.replace("```json", "").replace("```", "").strip()
 
